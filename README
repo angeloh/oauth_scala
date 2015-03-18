@@ -1,4 +1,9 @@
-This is your new Play application
-=================================
+OAuth 2.0 in Scala Play!
+=========================
+I am working on creating an easy model for reading in a google sheet as JSON.
 
-This file will be packaged with your application, when using `activator dist`.
+So far, I got the OAuth controller functions, the Token model for saving tokens into Mongo, and I can read in a list of an authenticated user's Drive files. However, I am having trouble actually reading a damn spreadsheet into the app.
+
+To do: Refresh token function, and reading an actual sheet.
+
+Right now trying to get this spreadsheet function down, but the libraries are not loading.
