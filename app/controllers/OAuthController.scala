@@ -82,7 +82,7 @@ object OAuthController extends Controller {
     }
     in.close
     Token.insert(response)
-    DriveClient.getAllDocumentsFromGoogleDocs(Token.parseResponse(response.toString)("accessToken"))
+    val files = DriveClient.getAllDocumentsFromGoogleDocs(Token.parseResponse(response.toString)("accessToken"))
     Redirect(routes.PhantomController.index)
   }
 

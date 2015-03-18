@@ -17,6 +17,7 @@ import reactivemongo.api._
 import reactivemongo.api.collections.default.BSONCollection
 import reactivemongo.bson._
 
+import scala.collection.JavaConverters
 import java.util.concurrent._
 import java.util.Arrays // added this for the Arrays.asList()
 import java.net._ // ADDING FOR URL
@@ -36,6 +37,13 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.File
 import com.google.api.services.drive.model.FileList
 
+import com.google.gdata.client.spreadsheet.SpreadsheetService
+import com.google.gdata.data.spreadsheet.ListEntry
+import com.google.gdata.data.spreadsheet.ListFeed
+import com.google.gdata.data.spreadsheet.SpreadsheetEntry
+import com.google.gdata.data.spreadsheet.WorksheetEntry
+import com.google.gdata.util.ServiceException
+
 object DriveClient {
 
   val mongoDriver = new MongoDriver
@@ -48,9 +56,7 @@ object DriveClient {
   val CLIENT_SECRET = GoogleClient.getSecret
   val httpTransport = new NetHttpTransport
   val jsonFactory = new JacksonFactory
-  /**
-  * Set Up Google App Credentials
-  */
+
   def prepareGoogleDrive(accessToken: String): Drive = {
     val credential = new GoogleCredential.Builder()
       .setJsonFactory(jsonFactory)
@@ -61,41 +67,40 @@ object DriveClient {
     new Drive.Builder(httpTransport, jsonFactory, credential).build()
   }
 
-  /**
-   * Upload To Google Drive
-   */
-  // def uploadToGoogleDrive(accessToken: String, fileToUpload: java.io.File, fileName: String, contentType: String): String = {
-  //   val service = prepareGoogleDrive(accessToken)
-  //   //Insert a file
-  //   val body = new File
-  //   body.setTitle(fileName)
-  //   body.setDescription(fileName)
-  //   body.setMimeType(contentType)
-  //   val fileContent: java.io.File = fileToUpload
-  //   val mediaContent = new FileContent(contentType, fileContent)
-  //   //Inserting the files
-  //   val file = service.files.insert(body, mediaContent).execute()
-  //   file.getId
- 
-  // }
-  /**
-   * Get All Files From Google Drive
-   */
- 
   def getAllDocumentsFromGoogleDocs(code: String) = {
     val service = prepareGoogleDrive(code)
-    val result = scala.collection.mutable.ListBuffer.empty[File]
+    val result = scala.collection.mutable.ListBuffer.empty[List[File]]
     val request = service.files.list
 
     do {
       val files = request.execute
-      val retrievedFiles = files.getItems
-      retrievedFiles.forEach( file => result ++= List[File](file))
+      val listOfFiles = JavaConverters
+        .asScalaBufferConverter(files.getItems)
+        .asScala
+        .toList
+      result ++= List[List[File]](listOfFiles)
       request.setPageToken(files.getNextPageToken)
     } while (request.getPageToken() != null && request.getPageToken().length() > 0)
 
-    result.toList map {
-      case a => (a.getOriginalFilename, a.getAlternateLink)
+    result.toList.flatten map {
+      case a => (a.getOriginalFilename, a.getAlternateLink, a.getId)
+    }
+  }
+
+  def getSpreadSheet(id: String) = {
+    val url = "https://spreadsheets.google.com/feeds/spreadsheets/" + id
+    val service = new SpreadsheetService("OAuth Scala")
+    service.setClientCredentials(CLIENT_ID, CLIENT_SECRET)
+    service.setAccessToken(token)
+    val metafeedUrl = new URL(url)
+    val spreadsheet = service.getEntry(metafeedUrl, SpreadsheetEntry.getClass)
+    val listFeedUrl = spreadsheet.getWorksheets().get(0).getListFeedUrl
+    val feed = service.getFeed(listFeedUrl, ListFeed.getClass)
+    for ( entry <- feed.getEntries ) {
+      println("new row")
+      for ( tag <- entry.getCustomElements.getTags ) {
+        println("     "+tag + ": " + entry.getCustomElements.getValue(tag))
+      }
     }
   }
   
